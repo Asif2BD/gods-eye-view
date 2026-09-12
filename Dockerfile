@@ -31,4 +31,7 @@ ENV HOST=0.0.0.0
 ENV PORT=4173
 EXPOSE 4173
 
-CMD ["npm", "run", "dev"]
+# Not `npm run dev`: the deployment config relocates Vite's cache directory
+# out of `node_modules/.vite/` so nginx's dot-segment deny rule cannot
+# block the pre-bundled Cesium chunk. See deploy/vite.config.docker.js.
+CMD ["npx", "vite", "--config", "deploy/vite.config.docker.js"]

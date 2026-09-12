@@ -7,3 +7,4 @@ dist
 !.env.example
 docs/media
 *.log
+vite-cache
