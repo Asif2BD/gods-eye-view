@@ -1,0 +1,14 @@
+services:
+  gods-eye-view:
+    build: .
+    container_name: gods-eye-view
+    restart: unless-stopped
+    # Host port is proxied by nginx; never expose the dev server publicly.
+    ports:
+      - '127.0.0.1:${HOST_PORT:-4173}:4173'
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      HOST: 0.0.0.0
+      PORT: 4173
