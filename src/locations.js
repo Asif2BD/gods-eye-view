@@ -346,6 +346,27 @@ export const CANCELLED_SEARCH = Object.freeze({ cancelled: true });
  * appropriate to the request. Countries and cities use their viewport by
  * default; precise landmarks/buildings use close landmark framing.
  */
+/**
+ * Resolve a free-text place query through the server-side Places proxy.
+ *
+ * Used when the direct Geocoding call cannot work — see the call site. Returns
+ * null on any failure so the caller falls through to its existing not-found path.
+ */
+async function textSearchFallback(query) {
+  try {
+    const response = await fetch(`/api/google/text-search?q=${encodeURIComponent(query)}`);
+    if (!response.ok) return null;
+    const data = await response.json();
+    const place = data?.places?.[0];
+    const lat = Number(place?.latitude);
+    const lon = Number(place?.longitude);
+    if (!Number.isFinite(lat) || !Number.isFinite(lon)) return null;
+    return { lat, lon, label: place.name || place.address || query, types: place.types || [] };
+  } catch {
+    return null;
+  }
+}
+
 export async function searchAndFlyTo(viewer, query, options = {}) {
   const apiKey = window.__GOOGLE_MAPS_API_KEY__ || import.meta.env.GOOGLE_MAPS_API_KEY;
   if (!apiKey) throw new Error('No Google Maps API key available for geocoding');
@@ -380,7 +401,19 @@ export async function searchAndFlyTo(viewer, query, options = {}) {
     types = recovered.types || [];
     viewport = placesViewportToBounds(recovered.viewport) || viewport;
   } else if (!result) {
-    return null;
+    // The Geocoding web service refuses referrer-restricted keys outright
+    // ("API keys with referer restrictions cannot be used with this API"), and the
+    // browser key MUST carry a referrer restriction because it ships in the bundle.
+    // placesNearViewRecovery is view-biased, so it cannot rescue a query for a place
+    // on the other side of the world. Fall back to the server-side Places proxy,
+    // which uses GOOGLE_MAPS_SERVER_API_KEY (IP-restricted, never sent to the client).
+    const viaProxy = await textSearchFallback(query);
+    if (!viaProxy) return null;
+    lat = viaProxy.lat;
+    lng = viaProxy.lon;
+    label = viaProxy.label || query;
+    types = viaProxy.types || [];
+    viewport = null;
   }
 
   const requestedRange = finitePositive(options.range);
