@@ -7,7 +7,7 @@
 # dead. This image therefore runs the same dev server the Pinokio launcher
 # runs, bound to every interface so nginx can proxy to it.
 
-FROM node:24-bookworm-slim
+FROM node:24.22.1-bookworm-slim
 
 # Cesium's build and sharp's postinstall want a compiler toolchain.
 RUN apt-get update \
